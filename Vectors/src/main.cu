@@ -1,0 +1,183 @@
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <cuda_runtime.h>
+#include "Kernels.cuh"
+
+//intialize vector with values from 0 to length-1 multiplied by factor
+void initVec(float* vec, int length, int factor)
+{
+    for(int i = 0; i<length; i++)
+    {
+        vec[i] = i * factor;
+    }
+}
+
+//initialize vector with values from file
+void initVecFile(float* vec, int length,const std::string& filePath)
+{
+    std::ifstream file(filePath,  std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error(std::string
+        ("Error: Could not open file '") + filePath + "'");
+    }
+    file.read(reinterpret_cast<char*>(vec), length * sizeof(float));
+    file.close();
+}
+
+//create the contect of a file 32f
+void create32File(const std::string& filePath , int length, int factor)
+{
+    std::vector<float> data(length);
+    for (int i = 0; i < length; i++) {
+        data[i] = static_cast<float>(i * factor) ;
+    }
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file)
+    {
+        throw std::runtime_error(std::string
+        ("Error: Could not create file '") + filePath + "'");
+    }
+    file.write(reinterpret_cast<const char*>(data.data()), length * sizeof(float));
+    file.close();
+
+    std::cout << "File '" << filePath << "' created with " << length << " float values." << std::endl;
+}
+
+//write the content of a vector to a file
+void ansToFile(const std::string& filePath, float* vec, int length)
+{
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file)
+    {
+        throw std::runtime_error(std::string
+        ("Error: Could not create file '") + filePath + "'");
+    }
+    file.write(reinterpret_cast<const char*>(vec), length * sizeof(float));
+    file.close();
+
+    std::cout << "File '" << filePath << "' created with " << length << " float values." << std::endl;
+}
+
+//read the content of a file and print it to the console
+void printFileContent(const std::string& filePath, int length)
+{
+    std::vector<float> data(length);
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error(std::string
+        ("Error: Could not open file '") + filePath + "'");
+    }
+    file.read(reinterpret_cast<char*>(data.data()), length * sizeof(float));
+    file.close();
+    std::cout << "Content of file '" << filePath << "':\n";
+    for (int i = 0; i < length; i++) {
+        std::cout << data[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+int main()
+{
+    int length = 1024;
+    int operationNum = 4;
+    int size = length * sizeof(float);
+    create32File("vector_data.32f", length, 3);
+    //memory allocation for host and device vectors
+    float *host_vec1, *host_vec2, *host_ansAdd,
+     *host_ansEvenMulOdd, *host_ans2Op, *host_ansNop , *host_ansNopFlip;
+
+    host_vec1 = new float[length];
+    host_vec2 = new float[length];
+    host_ansAdd = new float[length];
+    host_ansEvenMulOdd = new float[length];
+    host_ans2Op = new float[length];
+    host_ansNop = new float[length];
+    host_ansNopFlip = new float[length];
+
+    //initialize host vectors
+   initVec(host_vec1,length,1);
+   initVecFile(host_vec2,length,"vector_data.32f");
+   //initVec(host_vec2,length,2);
+
+    float *dev_vec1, *dev_vec2, *dev_ansAdd,
+     *dev_ansEvenMulOdd, *dev_ans2Op, *dev_ansNop, *dev_ansNopFlip;
+
+    cudaMalloc((void**)&dev_vec1, size);
+    cudaMalloc((void**)&dev_vec2, size);
+    cudaMalloc((void**)&dev_ansAdd, size);
+    cudaMalloc((void**)&dev_ansEvenMulOdd, size);
+    cudaMalloc((void**)&dev_ans2Op, size);
+    cudaMalloc((void**)&dev_ansNop, size);
+    cudaMalloc((void**)&dev_ansNopFlip, size);
+
+    //copy host vectors to device
+    cudaMemcpy(dev_vec1, host_vec1, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_vec2, host_vec2, size, cudaMemcpyHostToDevice);
+
+    //define the number of threads to the first kernels and calculate the number of blocks needed to cover all elements
+    int threadsPerBlock = 256;
+    int blockPerGrid = (length + threadsPerBlock - 1) / threadsPerBlock;
+    //define the number of threads to the third kernel- each thread does 2 operations
+    int numThreads2Op = length / 2;
+    int numBlocks2Op = (numThreads2Op + threadsPerBlock - 1) / threadsPerBlock;
+    //define the number of threads to the fourth kernel- each thread does n operations
+    int numThreadsNop = length / operationNum;
+    int numBlocksNop = (numThreadsNop + threadsPerBlock - 1) / threadsPerBlock;
+
+    vecAdd<<<blockPerGrid, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansAdd, length);
+    vecAddEvenMulOdd<<<blockPerGrid, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansEvenMulOdd, length);
+    vec2Operations<<<numBlocks2Op, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ans2Op, length);
+    vecNOperations<<<numBlocksNop, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansNop, length, operationNum);
+    vecNOpFlip<<<numBlocksNop, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansNopFlip, length, operationNum);
+    
+    //copy results back to host
+    cudaMemcpy(host_ansAdd, dev_ansAdd, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_ansEvenMulOdd, dev_ansEvenMulOdd, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_ans2Op, dev_ans2Op, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_ansNop, dev_ansNop, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_ansNopFlip, dev_ansNopFlip, size, cudaMemcpyDeviceToHost);
+
+    ansToFile("vector_result.32f", host_ansAdd, length);
+    
+    printFileContent("vector_result.32f", 10);
+    //print the first 10 results of each operation
+    std::cout<<"Result example:\n";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansAdd[i] << std::endl;
+        std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansNop[i] << std::endl;
+        std::cout << " flipped answer " << host_ansNopFlip[i] << std::endl;
+        if(i%2==0)
+        {
+            std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansEvenMulOdd[i] << std::endl;
+            std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ans2Op[i] << std::endl;
+        }
+        else
+        {
+             std::cout << host_vec2[i] << " ^ 2  = " << host_ansEvenMulOdd[i] << std::endl;
+             std::cout << host_vec1[i] << " * " << host_vec2[i] << " = " << host_ans2Op[i] << std::endl;
+        }
+    }
+    //free device memory
+    cudaFree(dev_vec1);
+    cudaFree(dev_vec2);
+    cudaFree(dev_ansAdd);
+    cudaFree(dev_ansEvenMulOdd);
+    cudaFree(dev_ans2Op);
+    cudaFree(dev_ansNop);
+    cudaFree(dev_ansNopFlip);
+    //free host memory
+    delete[] host_vec1;
+    delete[] host_vec2;
+    delete[] host_ansAdd;
+    delete[] host_ansEvenMulOdd;
+    delete[] host_ans2Op;
+    delete[] host_ansNop;
+    delete[] host_ansNopFlip;
+
+    return 0;
+}
