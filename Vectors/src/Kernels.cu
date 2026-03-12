@@ -28,45 +28,45 @@ __global__ void vecAddEvenMulOdd(float* vec1, float* vec2, float* ansVec, int ve
 __global__ void vec2Operations(float* vec1, float* vec2, float* ansVec, int vectorLen)
 {
     int workIndex = threadIdx.x + blockIdx.x * blockDim.x;
-    int evenIndex = workIndex * 2;
-    int oddIndex = workIndex * 2 + 1;
-    if(evenIndex < vectorLen)
+    int stride = vectorLen / 2;
+    if(workIndex < stride)
     {
-        ansVec[evenIndex] = vec1[evenIndex] + vec2[evenIndex];
-    }
-    if(oddIndex < vectorLen)
-    {
-        ansVec[oddIndex] = vec1[oddIndex] * vec2[oddIndex];
+        ansVec[workIndex] = vec1[workIndex] + vec2[workIndex];
+        int secondIndex = workIndex + stride;
+        if(secondIndex < vectorLen)        {
+            ansVec[secondIndex] = vec1[secondIndex] * vec2[secondIndex];
+        }
     }
 }
 
 __global__ void vecNOperations(float* vec1, float* vec2, float* ansVec, int vectorLen, int n)
 {
     int workIndex = threadIdx.x + blockIdx.x * blockDim.x;
-    int startIndex = workIndex * n;
+    int stride = vectorLen / n;
     for(int i = 0; i < n; i++)
     {
-        int currentIndex = startIndex + i;
-        if(currentIndex >= vectorLen)
+        int currentIndex = workIndex + i * stride;
+        if(currentIndex < vectorLen)
         {
-            return;
+             ansVec[currentIndex] = vec1[currentIndex] + vec2[currentIndex];   
         }
-        ansVec[currentIndex] = vec1[currentIndex] + vec2[currentIndex];
     }
 }
 
 __global__ void vecNOpFlip(float* vec1, float* vec2, float* ansVec, int vectorLen, int n)
 {
     int workIndex = threadIdx.x + blockIdx.x * blockDim.x;
-    int startIndex = workIndex * n;
+    int stride = vectorLen / n;
     for(int i = 0; i < n; i++)
     {
-        int currentIndex = startIndex + i;
-        int vec2Index = startIndex + (n - 1 - i);
-        if(currentIndex >= vectorLen || vec2Index >= vectorLen)
+       int currentIndex = workIndex + i * stride;
+        if (currentIndex < vectorLen)
         {
-            return;
+            int blockStart = (currentIndex / n) * n;
+            int offsetInBlock = currentIndex % n;
+            int vec2Index = blockStart + (n - 1 - offsetInBlock);
+
+            ansVec[currentIndex] = vec1[currentIndex] + vec2[vec2Index];
         }
-        ansVec[currentIndex] = vec1[currentIndex] + vec2[vec2Index];
     }
 }

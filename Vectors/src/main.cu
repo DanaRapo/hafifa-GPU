@@ -85,7 +85,7 @@ int main()
     int length = 1024;
     int operationNum = 4;
     int size = length * sizeof(float);
-    create32File("vector_data.32f", length, 3);
+    create32File("vector_data.32f", length, 2);
     //memory allocation for host and device vectors
     float *host_vec1, *host_vec2, *host_ansAdd,
      *host_ansEvenMulOdd, *host_ans2Op, *host_ansNop , *host_ansNopFlip;
@@ -150,7 +150,7 @@ int main()
     {
         std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansAdd[i] << std::endl;
         std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansNop[i] << std::endl;
-        std::cout << " flipped answer " << host_ansNopFlip[i] << std::endl;
+        std::cout << " flipped answer "<< i  << ": " << host_ansNopFlip[i] << std::endl;
         if(i%2==0)
         {
             std::cout << host_vec1[i] << " + " << host_vec2[i] << " = " << host_ansEvenMulOdd[i] << std::endl;
