@@ -19,7 +19,6 @@ __global__ void vecAdd(float* vec1, float* vec2, float* ansVec, int vectorLen);
  */
 __global__ void vecAddEvenMulOdd(float* vec1, float* vec2, float* ansVec, int vectorLen);
 
-
 /**
  * @brief each thread does addition of even indexes and multiplication of odd indexes of the second vector
  * @param vec1 first vector to add or multipy
@@ -38,7 +37,6 @@ __global__ void vec2Operations(float* vec1, float* vec2, float* ansVec, int vect
  * @param n the number of operations each thread performs
  */
 __global__ void vecNOperations(float* vec1, float* vec2, float* ansVec, int vectorLen, int n);
-
 
 /**
  * @brief each thread does n addittionswhere every result uses the corresponding element from vec1 and an element from vec2 accessed with stride n (interleaved layout).
