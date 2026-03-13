@@ -14,7 +14,7 @@ __global__ void vecAddEvenMulOdd(float* vec1, float* vec2, float* ansVec, int ve
     int workIndex = threadIdx.x + blockIdx.x*blockDim.x;
     if(workIndex < vectorLen)
     {
-        ansVec[workIndex] = (workIndex % 2 == 0) ? (vec1[workIndex] + vec2[workIndex]) : (vec2[workIndex] * vec2[workIndex]);
+        ansVec[workIndex] = (workIndex & 1) ? (vec2[workIndex] * vec2[workIndex]) : (vec1[workIndex] + vec2[workIndex]); 
     }
 }
 
