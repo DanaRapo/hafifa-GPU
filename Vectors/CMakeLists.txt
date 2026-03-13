@@ -10,6 +10,7 @@ include_directories(Include)
 set(SOURCES
     src/main.cu
     src/Kernels.cu
+    src/utils.cpp
 )
 
 add_executable(VectorAdd ${SOURCES})
