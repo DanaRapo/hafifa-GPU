@@ -14,14 +14,7 @@ __global__ void vecAddEvenMulOdd(float* vec1, float* vec2, float* ansVec, int ve
     int workIndex = threadIdx.x + blockIdx.x*blockDim.x;
     if(workIndex < vectorLen)
     {
-        if(workIndex % 2 == 0)
-        {
-            ansVec[workIndex] = vec1[workIndex] + vec2[workIndex];
-        }
-        else
-        {
-            ansVec[workIndex] = vec2[workIndex] * vec2[workIndex];
-        }
+        ansVec[workIndex] = (workIndex % 2 == 0) ? (vec1[workIndex] + vec2[workIndex]) : (vec2[workIndex] * vec2[workIndex]);
     }
 }
 
@@ -33,9 +26,7 @@ __global__ void vec2Operations(float* vec1, float* vec2, float* ansVec, int vect
     {
         ansVec[workIndex] = vec1[workIndex] + vec2[workIndex];
         int secondIndex = workIndex + stride;
-        if(secondIndex < vectorLen)        {
-            ansVec[secondIndex] = vec1[secondIndex] * vec2[secondIndex];
-        }
+        ansVec[secondIndex] = vec1[secondIndex] * vec2[secondIndex];
     }
 }
 
@@ -62,10 +53,9 @@ __global__ void vecNOpFlip(float* vec1, float* vec2, float* ansVec, int vectorLe
        int currentIndex = workIndex + i * stride;
         if (currentIndex < vectorLen)
         {
-            int blockStart = (currentIndex / n) * n;
+            int blockStart = currentIndex - (currentIndex % n);
             int offsetInBlock = currentIndex % n;
             int vec2Index = blockStart + (n - 1 - offsetInBlock);
-
             ansVec[currentIndex] = vec1[currentIndex] + vec2[vec2Index];
         }
     }

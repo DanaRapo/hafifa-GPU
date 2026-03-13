@@ -85,7 +85,13 @@ int main()
     int length = 1024;
     int operationNum = 4;
     int size = length * sizeof(float);
-    create32File("vector_data.32f", length, 2);
+    try{
+        create32File("vector_data.32f", length, 2);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
     //memory allocation for host and device vectors
     float *host_vec1, *host_vec2, *host_ansAdd,
      *host_ansEvenMulOdd, *host_ans2Op, *host_ansNop , *host_ansNopFlip;
@@ -100,7 +106,14 @@ int main()
 
     //initialize host vectors
    initVec(host_vec1,length,1);
-   initVecFile(host_vec2,length,"vector_data.32f");
+   try{
+        initVecFile(host_vec2,length,"vector_data.32f");
+    }
+    catch (const std::exception& e) {
+          std::cerr << "Error: " << e.what() << std::endl;
+          return 1;
+    }
+   
    //initVec(host_vec2,length,2);
 
     float *dev_vec1, *dev_vec2, *dev_ansAdd,
@@ -141,9 +154,20 @@ int main()
     cudaMemcpy(host_ansNop, dev_ansNop, size, cudaMemcpyDeviceToHost);
     cudaMemcpy(host_ansNopFlip, dev_ansNopFlip, size, cudaMemcpyDeviceToHost);
 
-    ansToFile("vector_result.32f", host_ansAdd, length);
-    
-    printFileContent("vector_result.32f", 10);
+    try{
+        ansToFile("vector_result.32f", host_ansAdd, length);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+    try{
+        printFileContent("vector_result.32f", 10);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
     //print the first 10 results of each operation
     std::cout<<"Result example:\n";
     for (int i = 0; i < 10; i++)
