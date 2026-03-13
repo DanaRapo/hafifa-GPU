@@ -1,4 +1,4 @@
-#include "Kernels.cuh"
+#include "../Include/Kernels.cuh"
 
 __global__ void vecAdd(float* vec1, float* vec2, float* ansVec, int vectorLen)
 {
@@ -55,7 +55,7 @@ __global__ void vecNOpFlip(float* vec1, float* vec2, float* ansVec, int vectorLe
         {
             int blockStart = currentIndex - (currentIndex % n);
             int offsetInBlock = currentIndex % n;
-            int vec2Index = blockStart + (n - 1 - offsetInBlock);
+            int vec2Index = blockStart + (n - 1 - offsetInBlock);  
             ansVec[currentIndex] = vec1[currentIndex] + vec2[vec2Index];
         }
     }

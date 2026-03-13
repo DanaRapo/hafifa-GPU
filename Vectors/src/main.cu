@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <cuda_runtime.h>
-#include "Kernels.cuh"
+#include "../Include/Kernels.cuh"
 
 //intialize vector with values from 0 to length-1 multiplied by factor
 void initVec(float* vec, int length, int factor)
@@ -79,6 +79,13 @@ void printFileContent(const std::string& filePath, int length)
     }
     std::cout << std::endl;
 }
+//check for cuda errors
+void checkCuda(cudaError_t result) {
+    if (result != cudaSuccess) {
+        std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
+        exit(-1);
+    }
+}
 
 int main()
 {
@@ -119,17 +126,17 @@ int main()
     float *dev_vec1, *dev_vec2, *dev_ansAdd,
      *dev_ansEvenMulOdd, *dev_ans2Op, *dev_ansNop, *dev_ansNopFlip;
 
-    cudaMalloc((void**)&dev_vec1, size);
-    cudaMalloc((void**)&dev_vec2, size);
-    cudaMalloc((void**)&dev_ansAdd, size);
-    cudaMalloc((void**)&dev_ansEvenMulOdd, size);
-    cudaMalloc((void**)&dev_ans2Op, size);
-    cudaMalloc((void**)&dev_ansNop, size);
-    cudaMalloc((void**)&dev_ansNopFlip, size);
+    checkCuda(cudaMalloc((void**)&dev_vec1, size));
+    checkCuda(cudaMalloc((void**)&dev_vec2, size));
+    checkCuda(cudaMalloc((void**)&dev_ansAdd, size));
+    checkCuda(cudaMalloc((void**)&dev_ansEvenMulOdd, size));
+    checkCuda(cudaMalloc((void**)&dev_ans2Op, size));
+    checkCuda(cudaMalloc((void**)&dev_ansNop, size));
+    checkCuda(cudaMalloc((void**)&dev_ansNopFlip, size));
 
     //copy host vectors to device
-    cudaMemcpy(dev_vec1, host_vec1, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_vec2, host_vec2, size, cudaMemcpyHostToDevice);
+    checkCuda(cudaMemcpy(dev_vec1, host_vec1, size, cudaMemcpyHostToDevice));
+    checkCuda(cudaMemcpy(dev_vec2, host_vec2, size, cudaMemcpyHostToDevice));
 
     //define the number of threads to the first kernels and calculate the number of blocks needed to cover all elements
     int threadsPerBlock = 256;
@@ -146,13 +153,13 @@ int main()
     vec2Operations<<<numBlocks2Op, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ans2Op, length);
     vecNOperations<<<numBlocksNop, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansNop, length, operationNum);
     vecNOpFlip<<<numBlocksNop, threadsPerBlock>>>(dev_vec1, dev_vec2, dev_ansNopFlip, length, operationNum);
-    
+    cudaDeviceSynchronize();
     //copy results back to host
-    cudaMemcpy(host_ansAdd, dev_ansAdd, size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_ansEvenMulOdd, dev_ansEvenMulOdd, size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_ans2Op, dev_ans2Op, size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_ansNop, dev_ansNop, size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_ansNopFlip, dev_ansNopFlip, size, cudaMemcpyDeviceToHost);
+    checkCuda(cudaMemcpy(host_ansAdd, dev_ansAdd, size, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(host_ansEvenMulOdd, dev_ansEvenMulOdd, size, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(host_ans2Op, dev_ans2Op, size, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(host_ansNop, dev_ansNop, size, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(host_ansNopFlip, dev_ansNopFlip, size, cudaMemcpyDeviceToHost));
 
     try{
         ansToFile("vector_result.32f", host_ansAdd, length);
@@ -187,13 +194,13 @@ int main()
         }
     }
     //free device memory
-    cudaFree(dev_vec1);
-    cudaFree(dev_vec2);
-    cudaFree(dev_ansAdd);
-    cudaFree(dev_ansEvenMulOdd);
-    cudaFree(dev_ans2Op);
-    cudaFree(dev_ansNop);
-    cudaFree(dev_ansNopFlip);
+    checkCuda(cudaFree(dev_vec1));
+    checkCuda(cudaFree(dev_vec2));
+    checkCuda(cudaFree(dev_ansAdd));
+    checkCuda(cudaFree(dev_ansEvenMulOdd));
+    checkCuda(cudaFree(dev_ans2Op));
+    checkCuda(cudaFree(dev_ansNop));
+    checkCuda(cudaFree(dev_ansNopFlip));
     //free host memory
     delete[] host_vec1;
     delete[] host_vec2;

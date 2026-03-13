@@ -5,7 +5,7 @@ project(VectorAddCUDA LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(header)
+include_directories(Include)
 
 set(SOURCES
     src/main.cu
