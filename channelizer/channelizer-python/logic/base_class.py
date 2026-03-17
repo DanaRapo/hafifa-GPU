@@ -9,9 +9,7 @@ class BaseClass(abc.ABC):
         """Base config for all computing logics"""
 
         def create_logical_instance(self) -> "BaseClass":
-            raise NotImplementedError(
-                "Config must implement create_logical_instance()"
-            )
+            pass
 
     def __init__(self, config: "BaseClass.Config"):
         self.config = config
