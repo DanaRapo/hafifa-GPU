@@ -12,7 +12,7 @@ def run_benchmark():
     )
     module = config.create_logical_instance()
 
-    # 2. Define data sizes in GB (start small to test system limits)
+    # 2. Define data sizes in GB 
     sizes_gb = [0.01, 0.1, 0.25, 0.5, 1.0] 
     execution_times = []
 
@@ -33,7 +33,6 @@ def run_benchmark():
         execution_times.append(duration)
         print(f"Processed {size} GB in {duration:.4f} seconds")
 
-    # 3. Generate the Graph
     plt.figure(figsize=(10, 6))
     plt.plot(sizes_gb, execution_times, 'o-r', linewidth=2, label='Python Runtime')
     plt.xlabel('Data Size (GB)')
@@ -41,7 +40,6 @@ def run_benchmark():
     plt.title('Channelizer Scalability: Data Size vs Execution Time')
     plt.grid(True, linestyle='--')
     plt.legend()
-    # Save the graph as a file instead of trying to open a window
     output_filename = "performance_graph.png"
     plt.savefig(output_filename)
     print(f"\nGraph saved successfully as {output_filename}")
