@@ -1,0 +1,22 @@
+# Ignore all of the .idea folder
+.idea/
+
+# Except these files if you want to share code style and inspection profiles
+# Uncomment if you want to keep them version controlled
+
+# !.idea/codeStyles/
+# !.idea/codeStyles/*.xml
+# !.idea/inspectionProfiles/
+# !.idea/inspectionProfiles/*.xml
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Ignore virtual environment folders
+venv/
+env/
+ENV/
+.venv
+signals/
