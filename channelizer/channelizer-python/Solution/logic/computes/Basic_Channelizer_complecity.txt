@@ -1,0 +1,2 @@
+time complecity: O(M*n) M- channels number
+memory complecity: O(n)
