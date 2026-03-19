@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from Solution.logic.computes.Basic_Channelizer import BasicChannelizer
+from logic.computes.Basic_Channelizer import BasicChannelizer
 
 def run_benchmark():
     # 1. Initialize Channelizer

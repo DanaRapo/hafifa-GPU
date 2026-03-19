@@ -4,8 +4,8 @@ import pytest
 import hydra
 from omegaconf import OmegaConf
 
-from Solution.logic.computes.Basic_Channelizer import BasicChannelizer
-from Solution.utils.cosine_similarity import cosine_similarity
+from logic.computes.Basic_Channelizer import BasicChannelizer
+from utils.cosine_similarity import cosine_similarity
 
 
 class TestConfig(pydantic.BaseModel):
