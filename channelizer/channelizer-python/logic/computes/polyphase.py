@@ -20,12 +20,10 @@ class PolyphaseChannelizer(BaseClass):
     def initialize(self):
         self.xp = np
         self.num_channels = int(self.config.fs_hz / self.config.channel_bw_hz) # M
-        
-        # Load filter from binary file (Float32)
+ 
         filter_raw = np.fromfile(self.config.filter_path, dtype='<f4')
         filter_channel_len = len(filter_raw) // self.num_channels
     
-        # Reshape to (M, L) where M is channels and L is taps per branch
         self.polyphase_filters = filter_raw[:self.num_channels * filter_channel_len].reshape(
             self.num_channels, filter_channel_len, order='F'
         ).astype(np.complex64)        
@@ -37,7 +35,6 @@ class PolyphaseChannelizer(BaseClass):
         :return: A matrix of the data reshaped and after polyphase filtering
         """
         itemsize = data.itemsize
-        # 1. Commutator: Branch decomposition
         if self.config.decimation_factor ==  self.num_channels:
             num_blocks = len(data) //  self.num_channels
             reshaped = data[:num_blocks *  self.num_channels].reshape(num_blocks, self.num_channels).T

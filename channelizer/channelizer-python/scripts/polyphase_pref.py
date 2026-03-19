@@ -16,7 +16,7 @@ def run_polyphase_benchmark():
     module = config.create_logical_instance()
     module.initialize()
 
-    sizes_gb = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0] 
+    sizes_gb = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0] 
     cpu_times = []
     gpu_times = []
 
@@ -28,14 +28,13 @@ def run_polyphase_benchmark():
         
         # --- CPU Benchmark ---
         start_cpu = time.perf_counter()
-        module.run(data_cpu) # Module detects numpy -> runs on CPU
+        module.run(data_cpu)
         end_cpu = time.perf_counter()
         cpu_duration = end_cpu - start_cpu
         cpu_times.append(cpu_duration)
 
         # --- GPU Benchmark ---
         # included the transfer time to GPU (asarray) as part of the benchmark
-        # because in real life, data often starts in the RAM.
         start_gpu = time.perf_counter()
         data_gpu = cp.asarray(data_cpu) # Move to VRAM
         res_gpu = module.run(data_gpu)  # Run on GPU
@@ -47,18 +46,17 @@ def run_polyphase_benchmark():
         
         print(f"Size: {size:>5} GB | CPU: {cpu_duration:.4f}s | GPU: {gpu_duration:.4f}s")
 
-    # 3. Plotting
     plt.figure(figsize=(10, 6), facecolor='w')
     plt.plot(sizes_gb, cpu_times, 'o-', color='blue', linewidth=2, label='CPU (NumPy)')
     plt.plot(sizes_gb, gpu_times, 's-', color='green', linewidth=2, label='GPU (CuPy)')
     
-    plt.xscale('log') # Use log scale if sizes vary significantly
-    plt.yscale('log')
-    plt.xlabel('Data Size (GB)')
-    plt.ylabel('Execution Time (seconds)')
-    plt.title('Polyphase Channelizer Performance: CPU vs GPU')
-    plt.grid(True, which="both", linestyle='--', alpha=0.5)
-    plt.legend()
+    plt.xlabel('Data Size (GB)', fontsize=12)
+    plt.ylabel('Execution Time (seconds)', fontsize=12)
+    plt.title('Polyphase Channelizer: Performance Scaling', fontsize=14)
+    plt.grid(True, which="major", linestyle='--', alpha=0.7)
+    plt.xticks(sizes_gb)
+    
+    plt.legend(fontsize=11)
     
     output_filename = "polyphase_performance_comparison.png"
     plt.savefig(output_filename)
