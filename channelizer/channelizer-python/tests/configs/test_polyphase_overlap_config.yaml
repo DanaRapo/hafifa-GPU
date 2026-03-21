@@ -5,6 +5,6 @@ test_config:
   module_config:
     channel_bw_hz: 1000
     fs_hz: 10000
-    filter_path: "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin"
+    filter_path: "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer_overlap.bin"
     decimation_factor: 5
-    grid_spacing_hz: 500
+  

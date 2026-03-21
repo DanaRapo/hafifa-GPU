@@ -2,24 +2,45 @@ import time
 import numpy as np
 import cupy as cp
 import matplotlib.pyplot as plt
+import pydantic
 from logic.computes.Basic_Channelizer import BasicChannelizer
 from logic.computes.polyphase import PolyphaseChannelizer
 
 def run_polyphase_benchmark():
-    # 1. Initialize Polyphase Channelizer Config
-    poly_config = PolyphaseChannelizer.Config(
-        channel_bw_hz = 1000.0,
-        fs_hz = 10000.0,
-        filter_path = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin",
-        decimation_factor = 10,
-        grid_spacing_hz = 1000.0
-    )
-    poly_module = poly_config.create_logical_instance()
-    poly_module.initialize()
+    # Common parameters
+    fs = 10000.0
+    bw = 1000.0
+    decim = 10
+    filter_path = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin"
 
+    # 1. Initialize CPU Polyphase Instance
+    cpu_poly_config = PolyphaseChannelizer.Config(
+        channel_bw_hz = bw,
+        fs_hz = fs,
+        filter_path = filter_path,
+        decimation_factor = decim,
+        grid_spacing_hz = bw, # Added missing field if required
+        use_gpu = False
+    )
+    cpu_poly_module = cpu_poly_config.create_logical_instance()
+    cpu_poly_module.initialize()
+
+    # 2. Initialize GPU Polyphase Instance
+    gpu_poly_config = PolyphaseChannelizer.Config(
+        channel_bw_hz = bw,
+        fs_hz = fs,
+        filter_path = filter_path,
+        decimation_factor = decim,
+        grid_spacing_hz = bw,
+        use_gpu = True
+    )
+    gpu_poly_module = gpu_poly_config.create_logical_instance()
+    gpu_poly_module.initialize()
+
+    # 3. Initialize Basic Channelizer
     basic_config = BasicChannelizer.Config(
-        channel_bw_hz=1000.0,
-        fs_hz=10000,
+        channel_bw_hz=bw,
+        fs_hz=fs,
         up_sample_factor=1
     )
     basic_module = basic_config.create_logical_instance()
@@ -31,54 +52,41 @@ def run_polyphase_benchmark():
 
     for size in sizes_gb:
         num_samples = int((size * 1e9) / 8)
-        # Create dummy complex data on CPU
-        data_cpu = np.random.randn(num_samples).astype(np.complex64) + \
-                   1j * np.random.randn(num_samples).astype(np.complex64)
+        data_cpu = (np.random.randn(num_samples) + 1j * np.random.randn(num_samples)).astype(np.complex64)
 
-        # --- Basic Channelizer Benchmark (Python Loops) ---
+        # --- Basic Channelizer Benchmark ---
         start_basic = time.perf_counter()
         basic_module.run(data_cpu)
-        end_basic = time.perf_counter()
-        basic_duration = end_basic - start_basic
-        basic_times.append(basic_duration)
+        basic_times.append(time.perf_counter() - start_basic)
 
-        # --- CPU Benchmark ---
+        # --- Polyphase CPU Benchmark ---
         start_cpu = time.perf_counter()
-        poly_module.run(data_cpu)
-        end_cpu = time.perf_counter()
-        cpu_duration = end_cpu - start_cpu
-        cpu_times.append(cpu_duration)
+        cpu_poly_module.run(data_cpu)
+        cpu_times.append(time.perf_counter() - start_cpu)
 
-        # --- GPU Benchmark ---
-        # included the transfer time to GPU (asarray) as part of the benchmark
+        # --- Polyphase GPU Benchmark ---
         start_gpu = time.perf_counter()
-        data_gpu = cp.asarray(data_cpu) # Move to VRAM
-        res_gpu = poly_module.run(data_gpu)  # Run on GPU
-        cp.cuda.Stream.null.synchronize() # Wait for GPU to finish!
-        end_gpu = time.perf_counter()
+
+        data_gpu = cp.asarray(data_cpu) 
+        gpu_poly_module.run(data_gpu) 
+        cp.cuda.Stream.null.synchronize() 
+        gpu_times.append(time.perf_counter() - start_gpu)
         
-        gpu_duration = end_gpu - start_gpu
-        gpu_times.append(gpu_duration)
-        
-        print(f"Size: {size:>5} GB | CPU: {cpu_duration:.4f}s | GPU: {gpu_duration:.4f}s | Basic: {basic_duration:.4f}s")
+        print(f"Size: {size:>5} GB | CPU: {cpu_times[-1]:.4f}s | GPU: {gpu_times[-1]:.4f}s | Basic: {basic_times[-1]:.4f}s")
 
     plt.figure(figsize=(12, 7), facecolor='w')
-    
     plt.plot(sizes_gb, basic_times, 'o-r', linewidth=2, label='Basic Channelizer (Python Loops)')
-    plt.plot(sizes_gb, cpu_times, 'o-b', linewidth=2, label='Polyphase CPU (NumPy Vectorized)')
-    plt.plot(sizes_gb, gpu_times, 's-g', linewidth=2, label='Polyphase GPU (CuPy)')
+    plt.plot(sizes_gb, cpu_times, 'o-b', linewidth=2, label='Polyphase CPU (NumPy)')
+    plt.plot(sizes_gb, gpu_times, 's-g', linewidth=2, label='Polyphase GPU (CuPy + Transfer)')
     
-    plt.xlabel('Data Size (GB)', fontsize=12)
-    plt.ylabel('Execution Time (seconds)', fontsize=12)
-    plt.title('Channelizer Architecture Comparison: Execution Time vs Data Size', fontsize=14)
+    plt.xlabel('Data Size (GB)')
+    plt.ylabel('Execution Time (seconds)')
+    plt.title('Performance Comparison: CPU vs GPU vs Basic')
     plt.grid(True, which="major", linestyle='--', alpha=0.7)
-    plt.xticks(sizes_gb)
-    plt.legend(fontsize=10)
+    plt.legend()
     
-    output_filename = "polyphase_performance_comparison.png"
-    plt.savefig(output_filename)
+    plt.savefig("polyphase_performance_comparison.png")
     plt.show()
-    print(f"\nBenchmark graph saved as {output_filename}")
 
 if __name__ == "__main__":
     run_polyphase_benchmark()

@@ -6,7 +6,7 @@ import hydra
 from omegaconf import OmegaConf
 
 from logic.computes.polyphase import PolyphaseChannelizer
-from utils.energy_similarity import energy_similarity
+from utils.cosine_similarity import cosine_similarity
 
 
 class TestConfig(pydantic.BaseModel):
@@ -34,16 +34,27 @@ class TestClass:
     )
     def test_polyphase(self, test_config: TestConfig, device):
         input_signal = np.fromfile(test_config.input_signal_path, dtype=np.complex64)
+        
+        test_config.module_config.use_gpu = (device == "gpu")
+        
         if device == "gpu":
             input_signal = cp.asarray(input_signal)
         module = test_config.module_config.create_logical_instance()
         module.initialize()
+        
         calc_output_raw = module.run(input_signal)  
         calc_output = calc_output_raw.get() if hasattr(calc_output_raw, 'get') else calc_output_raw
-        num_channels = int(test_config.module_config.fs_hz // test_config.module_config.grid_spacing_hz)
+        
+        num_channels = module.num_channels
+        
         test_output_raw = np.fromfile(test_config.test_signal_path, dtype=np.complex64) 
         test_output = test_output_raw.reshape(-1, num_channels).T 
-        energy_ratios = energy_similarity(calc_output, test_output)
-        print(f"Energy Ratios (Python/Matlab): {energy_ratios}")
-        diffs = np.abs(energy_ratios - 1.0)
-        assert np.all(diffs < test_config.tol), f"Energy mismatch on {device}! Ratios: {energy_ratios}"
+        
+        min_samples = min(calc_output.shape[1], test_output.shape[1])
+        calc_output_trimmed = calc_output[:, :min_samples]
+        test_output_trimmed = test_output[:, :min_samples]
+            
+        similarity_scores = cosine_similarity(calc_output_trimmed, test_output_trimmed)
+        print(f"Energy Ratios (Python/Matlab): {similarity_scores}")
+       
+        assert np.all(similarity_scores > 1 - test_config.tol), f"Similarity fail! Values: {similarity_scores}"

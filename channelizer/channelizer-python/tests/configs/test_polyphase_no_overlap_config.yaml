@@ -6,4 +6,3 @@ test_config:
     fs_hz: 10000
     filter_path: "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin"
     decimation_factor: 10
-    grid_spacing_hz: 1000
