@@ -24,15 +24,20 @@ class PolyphaseChannelizer(BaseClass):
         self.num_channels = int(self.requested_channels_num * self.overlap_factor) 
         filter_raw = np.fromfile(self.config.filter_path, dtype='<f4')
         
-        assert len(filter_raw) % self.num_channels == 0, \
-            f"Filter length {len(filter_raw)} must be divisible by {self.num_channels}"
-        
+        if filter_raw.size % self.num_channels != 0:
+            raise ValueError(
+                f"Filter size {filter_raw.size} is not divisible by "
+                f"num_channels {self.num_channels}. Check filter design parameters."
+            )
         self.ola_param = len(filter_raw) // self.num_channels
-    
-        polyphase_filters_np = filter_raw.reshape(
-            self.num_channels, self.ola_param, order='F'
-        ).astype(np.complex64)   
-        self.polyphase_filters = self.xp.asarray(polyphase_filters_np)     
+        try:
+            polyphase_filters_np = filter_raw.reshape(
+                self.num_channels, self.ola_param, order='F'
+            ).astype(np.complex64)   
+            self.polyphase_filters = self.xp.asarray(polyphase_filters_np)
+        
+        except ValueError as e:
+            raise ValueError(f"Reshape failed despite size check: {e}")     
         
     def apply_decimation_polyphase_filter(self ,data: ArrayLike) -> ArrayLike:
         """
@@ -43,13 +48,13 @@ class PolyphaseChannelizer(BaseClass):
         num_blocks = (len(data) - self.num_channels * self.ola_param) // self.config.decimation_factor + 1
         itemsize = data.itemsize
        
-        reshaped = self.xp.lib.stride_tricks.as_strided(
+        reshaped_data = self.xp.lib.stride_tricks.as_strided(
             data,
             shape=(self.ola_param, self.num_channels, num_blocks),
             strides=(self.num_channels * itemsize, itemsize, self.config.decimation_factor * itemsize)
         )
         expanded_filters = self.polyphase_filters.T.reshape(self.ola_param, self.num_channels, 1)
-        data_in = reshaped[::-1, ::-1, :]
+        data_in = reshaped_data[::-1, ::-1, :]
         filtered = data_in * expanded_filters
         summed_data = filtered.sum(axis=0)
        
