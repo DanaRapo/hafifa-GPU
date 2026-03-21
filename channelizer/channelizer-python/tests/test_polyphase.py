@@ -40,7 +40,7 @@ class TestClass:
         module.initialize()
         calc_output_raw = module.run(input_signal)  
         calc_output = calc_output_raw.get() if hasattr(calc_output_raw, 'get') else calc_output_raw
-        num_channels = int(test_config.module_config.fs_hz // test_config.module_config.channel_bw_hz)
+        num_channels = int(test_config.module_config.fs_hz // test_config.module_config.grid_spacing_hz)
         test_output_raw = np.fromfile(test_config.test_signal_path, dtype=np.complex64) 
         test_output = test_output_raw.reshape(-1, num_channels).T 
         energy_ratios = energy_similarity(calc_output, test_output)
