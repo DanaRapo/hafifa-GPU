@@ -1,26 +1,28 @@
 import numpy as np
 import cupy as cp
 import pydantic
-from scipy.signal import fftconvolve
 
 from logic.base_class import BaseClass
 from utils.types import ArrayLike
 
 class PolyphaseChannelizer(BaseClass):
     class Config(BaseClass.Config):
-        channel_bw_hz: pydantic.PositiveFloat
+        channel_bw_hz: pydantic.PositiveFloat #effecting the filter
         fs_hz: pydantic.PositiveFloat
-        up_sample_factor: pydantic.PositiveInt = 1
         filter_path: str
         decimation_factor: pydantic.PositiveInt
+        grid_spacing_hz: pydantic.PositiveFloat
 
         def create_logical_instance(self):
             return PolyphaseChannelizer(config=self)
 
     def initialize(self):
         self.xp = np
-        self.num_channels = int(self.config.fs_hz / self.config.channel_bw_hz) # M
- 
+        self.requested_channels_num = int(self.config.fs_hz / self.config.grid_spacing_hz) 
+        self.num_channels = ((self.requested_channels_num + self.config.decimation_factor -1) 
+                             // self.config.decimation_factor ) * self.config.decimation_factor
+        self.overlap_factor = self.num_channels // self.config.decimation_factor
+
         filter_raw = np.fromfile(self.config.filter_path, dtype='<f4')
         filter_channel_len = len(filter_raw) // self.num_channels
     
@@ -34,25 +36,24 @@ class PolyphaseChannelizer(BaseClass):
         :param data: the input signal to be decimated
         :return: A matrix of the data reshaped and after polyphase filtering
         """
+        total_path = self.num_channels * self.overlap_factor #M* M/R
+        num_blocks = (len(data) - total_path) // self.config.decimation_factor + 1
         itemsize = data.itemsize
-        if self.config.decimation_factor ==  self.num_channels:
-            num_blocks = len(data) //  self.num_channels
-            reshaped = data[:num_blocks *  self.num_channels].reshape(num_blocks, self.num_channels).T
-        else:
-            num_blocks = (len(data) -  self.num_channels) // self.config.decimation_factor + 1
-            reshaped = self.xp.lib.stride_tricks.as_strided(
-                data, 
-                shape=( self.num_channels, num_blocks), 
-                strides=(itemsize, self.config.decimation_factor * itemsize)
-            )
+        reshaped = self.xp.lib.stride_tricks.as_strided(
+            data,
+            shape = (total_path , num_blocks),
+            strides = (itemsize , self.config.decimation_factor * itemsize)
+        )
+        expanded_filters = self.xp.repeat(current_filters, self.overlap_factor, axis=0)
         x_in = self.xp.flipud(reshaped)
         if self.xp == cp:
             from cupyx.scipy.signal import fftconvolve as convolve_func
         else:
             from scipy.signal import fftconvolve as convolve_func
   
-        filtered = convolve_func(x_in, current_filters, mode='same', axes=1)
-        return filtered.astype(self.xp.complex64)
+        filtered = convolve_func(x_in, expanded_filters, mode='same', axes=1)
+        summed_data = filtered.reshape(self.num_channels, self.overlap_factor, num_blocks).sum(axis=1)
+        return summed_data.astype(self.xp.complex64)
 
     def idft_and_freq_shift(self, data: ArrayLike) -> ArrayLike:
         """

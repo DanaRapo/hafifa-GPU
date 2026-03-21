@@ -28,7 +28,10 @@ def test_config(request) -> TestConfig:
 
 class TestClass:
     @pytest.mark.parametrize("device", ["cpu", "gpu"])
-    @pytest.mark.parametrize("test_config", ["test_polyphase_config"], indirect=True)
+    @pytest.mark.parametrize("test_config", 
+        ["test_polyphase_no_overlap_config", "test_polyphase_overlap_config"], 
+        indirect=True
+    )
     def test_polyphase(self, test_config: TestConfig, device):
         input_signal = np.fromfile(test_config.input_signal_path, dtype=np.complex64)
         if device == "gpu":
