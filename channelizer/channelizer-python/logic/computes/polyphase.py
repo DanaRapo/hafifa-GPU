@@ -44,8 +44,10 @@ class PolyphaseChannelizer(BaseClass):
             shape = (total_path , num_blocks),
             strides = (itemsize , self.config.decimation_factor * itemsize)
         )
-        expanded_filters = self.xp.repeat(current_filters, self.overlap_factor, axis=0)
-        x_in = self.xp.flipud(reshaped)
+        expanded_filters = self.xp.ascontiguousarray(
+            self.xp.repeat(current_filters, self.overlap_factor, axis=0)
+        )
+        x_in = self.xp.ascontiguousarray(self.xp.flipud(reshaped))
         if self.xp == cp:
             from cupyx.scipy.signal import fftconvolve as convolve_func
         else:
