@@ -72,3 +72,47 @@ class TestClass:
                 f"Similarity fail on active channels! Values: {active_scores}"
         else:
             pytest.fail("No active channels detected for validation")
+
+    @pytest.mark.parametrize("device", ["cpu", "gpu"])
+    @pytest.mark.parametrize("test_config", 
+        ["test_polyphase_no_overlap_config", "test_polyphase_overlap_config"], 
+        indirect=True
+    )
+    def test_streaming_continuity(self, test_config: TestConfig, device):
+        """
+        Verify that processing a signal in chunks produces the same result 
+        as processing it in one single call. This validates Buffer continuity.
+        """
+        input_signal = np.fromfile(test_config.input_signal_path, dtype=np.complex64)
+        test_config.module_config.use_gpu = (device == "gpu")
+        if device == "gpu":
+            input_signal = cp.asarray(input_signal)
+
+        module_ref = test_config.module_config.create_logical_instance()
+        module_ref.initialize()
+        full_output = module_ref.run(input_signal)
+        full_output_np = full_output.get() if hasattr(full_output, 'get') else full_output
+
+        module_stream = test_config.module_config.create_logical_instance()
+        module_stream.initialize()
+        
+        chunks = np.array_split(input_signal, 3)
+        chunk_outputs = []
+        
+        for chunk in chunks:
+            chunk_res = module_stream.run(chunk)
+            # Only append if the chunk was large enough to produce output
+            if chunk_res.size > 0:
+                chunk_outputs.append(chunk_res.get() if hasattr(chunk_res, 'get') else chunk_res)
+                stream_output_np = np.concatenate(chunk_outputs, axis=1)
+
+        min_time = min(full_output_np.shape[1], stream_output_np.shape[1])
+        full_trimmed = full_output_np[:, :min_time]
+        stream_trimmed = stream_output_np[:, :min_time]
+
+        continuity_similarity = cosine_similarity(full_trimmed, stream_trimmed)
+        
+        print(f"Continuity Similarity Scores (per channel): {continuity_similarity}")
+        
+        assert np.all(continuity_similarity > 1 - test_config.tol), \
+            f"Streaming continuity failed! Chunks don't match full run. Scores: {continuity_similarity}"
