@@ -40,7 +40,8 @@ class PolyphaseChannelizer(BaseClass):
             raise ValueError(f"Reshape failed despite size check: {e}")
 
         self.prev_buffer = None
-        self.total_processed_blocks = 0     
+        self.total_processed_blocks = 0  
+        self.filter_len = self.num_channels * self.ola_param  
         
     def apply_decimation_polyphase_filter(self ,data: ArrayLike) -> ArrayLike:
         """
@@ -89,22 +90,29 @@ class PolyphaseChannelizer(BaseClass):
         :param data: the input signal to be channelized, expected to be a 1D array
         :return: a matrix of channelized signals (Channels x Time)
         """
+        current_input = data
+        filter_tail_len = self.filter_len - self.decimation_factor
         if self.prev_buffer is None:
-            full_data = data
+            if len(current_input) < self.filter_len:
+                self.prev_buffer = current_input
+                return self.xp.array([], dtype=self.xp.complex64)
+            current_buffer = current_input
         else:
-            full_data = self.xp.concatenate([self.prev_buffer, data])
-
-        if len(full_data) < (self.num_channels * self.ola_param) :
-            self.prev_buffer = full_data
+            prev_overlap_part = self.prev_buffer[-filter_tail_len:]
+            current_buffer = self.xp.concatenate([prev_overlap_part, current_input])
+        
+        num_blocks = (len(current_buffer) - self.filter_len) // self.decimation_factor + 1
+        
+        if num_blocks <= 0:
+            self.prev_buffer = current_buffer
             return self.xp.array([], dtype=self.xp.complex64)
         
-        num_blocks = (len(full_data) - self.num_channels * self.ola_param) // self.decimation_factor + 1
-        last_idx_to_process = (num_blocks - 1) * self.decimation_factor + self.num_channels * self.ola_param
+        valid_length = (num_blocks - 1) * self.decimation_factor + self.filter_len
+        data_to_process = current_buffer[:valid_length]
 
-        data_to_process = full_data[:last_idx_to_process]
-        self.prev_buffer = full_data[num_blocks * self.decimation_factor:]
+        self.prev_buffer = current_input
 
         filtered_data = self.apply_decimation_polyphase_filter(data_to_process)
-        channels = self.idft_and_freq_shift(filtered_data)
+        output = self.idft_and_freq_shift(filtered_data)
         
-        return channels
+        return output
