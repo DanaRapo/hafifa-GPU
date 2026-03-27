@@ -3,6 +3,7 @@ import abc
 import numpy as np
 from pydantic import BaseModel
 
+from utils.types import ArrayLike
 
 class BaseClass(abc.ABC):
     class Config(BaseModel):
@@ -19,5 +20,5 @@ class BaseClass(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def run(self, data: np.ndarray) -> np.ndarray:
+    def run(self, data: ArrayLike) -> ArrayLike:
         pass

@@ -1,12 +1,12 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from Solution.logic.computes.Basic_Channelizer import BasicChannelizer
+from logic.computes.Basic_Channelizer import BasicChannelizer
 
 def run_benchmark():
     # 1. Initialize Channelizer
     config = BasicChannelizer.Config(
-        num_channels=10,
+        channel_bw_hz=1000.0,
         fs_hz=10000,
         up_sample_factor=1
     )

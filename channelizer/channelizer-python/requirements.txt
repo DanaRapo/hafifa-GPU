@@ -7,3 +7,4 @@ ruff
 
 pytest
 matplotlib
+cupy-cuda12x

@@ -2,7 +2,7 @@ import numpy as np
 import pydantic
 from scipy.signal import resample_poly
 
-from Solution.logic.Base_Class import BaseClass
+from logic.base_class import BaseClass
 
 
 class BasicChannelizer(BaseClass):
@@ -29,7 +29,7 @@ class BasicChannelizer(BaseClass):
         phases = phase_increment * np.arange(n)
         return data * np.exp(1j * phases)
 
-    def lpf_Decimation(self, data: np.ndarray) -> np.ndarray:
+    def lpf_decimation(self, data: np.ndarray) -> np.ndarray:
         """
 
         :param data: the input signal to be low-pass filtered and decimated
@@ -41,7 +41,6 @@ class BasicChannelizer(BaseClass):
 
     def run(self, data: np.ndarray) -> np.ndarray:
         """
-
         :param data: the input signal to be channelized, expected to be a 1D numpy array representing the time-domain signal
         :return: a list of channelized signals
         """
@@ -50,7 +49,7 @@ class BasicChannelizer(BaseClass):
         cyclic_frequencies = np.fft.fftfreq(self.num_channels, 1/self.config.fs_hz)
         for freq in cyclic_frequencies:
             shifted_data = self.frequency_shift(data, freq)
-            filtered_decimated_data = self.lpf_Decimation(shifted_data)
+            filtered_decimated_data = self.lpf_decimation(shifted_data)
             channels.append(filtered_decimated_data)
 
         return np.array(channels)
