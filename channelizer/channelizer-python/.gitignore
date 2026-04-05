@@ -20,3 +20,7 @@ env/
 ENV/
 .venv
 signals/
+../../.vscode/
+../../Vectors/.vscode/
+../../Vectors/build/
+../.venv/
