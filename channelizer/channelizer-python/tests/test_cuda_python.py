@@ -13,7 +13,7 @@ class TestConfig(pydantic.BaseModel):
     module_config: PolyphaseChannelizer.Config
     input_signal_path: str
     cuda_signal_path: str
-    tol: pydantic.PositiveFloat = 9e-2
+    tol: pydantic.PositiveFloat = 1e-2
 
 
 @pytest.fixture(scope="session")
@@ -34,11 +34,11 @@ class TestClass:
     )
     def test_polyphase_cublas(self, test_config: TestConfig, device):
         input_signal = np.fromfile(test_config.input_signal_path, dtype=np.complex64)
-        
         test_config.module_config.use_gpu = (device == "gpu")
 
         if device == "gpu":
             input_signal = cp.asarray(input_signal)
+
         module = test_config.module_config.create_logical_instance()
         module.initialize()
         
@@ -49,12 +49,13 @@ class TestClass:
         
         cuda_output_raw = np.fromfile(test_config.cuda_signal_path, dtype=np.complex64) 
         test_output = cuda_output_raw.reshape(-1, num_channels).T
+        
         min_samples = min(calc_output.shape[1], test_output.shape[1])
         calc_output_trimmed = calc_output[:, :min_samples]
         test_output_trimmed = test_output[:, :min_samples]
             
         similarity_scores = cosine_similarity(calc_output_trimmed, test_output_trimmed)
-        print(f"Energy Ratios (Python/Matlab): {similarity_scores}")
+        print(f"Similarity Scores: {similarity_scores}")
         
         energies = np.mean(np.abs(calc_output_trimmed)**2, axis=1)
         relative_energies = energies / (np.max(energies) + 1e-12)
@@ -62,26 +63,6 @@ class TestClass:
         significant_channel_mask = relative_energies > 0.01 
         active_scores = similarity_scores[significant_channel_mask]
         
-        print(f"Energy Ratios (Python/Matlab): {similarity_scores}")
-        print(f"Significant Channels Mask: {significant_channel_mask}")
-        print(f"DEBUG: calc_output shape: {calc_output.shape}")
-        print(f"DEBUG: test_output shape: {test_output.shape}")
-        print(f"DEBUG: calc_output samples (first 5): {calc_output[0, :5]}")
-        print(f"DEBUG: test_output samples (first 5): {test_output[0, :5]}")
-
-        
-        test_output_flipped = test_output_trimmed[::-1, :]
-
-        similarity_scores_flipped = cosine_similarity(calc_output_trimmed, test_output_flipped)
-        print(f"Flipped Similarity: {similarity_scores_flipped}")
-
-        final_calc_output = module.run(input_signal)
-        cuda_res_final = module.idft_and_freq_shift(test_output)
-        if hasattr(cuda_res_final, 'get'): cuda_res_final = cuda_res_final.get()
-        final_similarity = cosine_similarity(final_calc_output, cuda_res_final[:, :min_samples])
-
-        print(f"Final Channelizer Similarity (After Phase Correction): {final_similarity}")
-        # Assert only on active channels to avoid noise-floor randomness
         if active_scores.size > 0:
             assert np.all(active_scores > 1 - test_config.tol), \
                 f"Similarity fail on active channels! Values: {active_scores}"
@@ -110,23 +91,20 @@ class TestClass:
         num_channels = module.num_channels
         cuda_output_raw = np.fromfile(test_config.cuda_signal_path, dtype=np.complex64)
 
-        test_output = cuda_output_raw.reshape((-1, num_channels)).T
-
+        test_output = cuda_output_raw.reshape(-1, num_channels).T
+        
         min_samples = min(calc_output.shape[1], test_output.shape[1])
         calc_output_trimmed = calc_output[:, :min_samples]
         test_output_trimmed = test_output[:, :min_samples]
 
         similarity_scores = cosine_similarity(calc_output_trimmed, test_output_trimmed)
-        print(f"Energy Ratios : {similarity_scores}")
-        
+        print(f"Similarity Scores: {similarity_scores}")
+
         energies = np.mean(np.abs(calc_output_trimmed)**2, axis=1)
         relative_energies = energies / (np.max(energies) + 1e-12)
         
         significant_channel_mask = relative_energies > 0.01 
         active_scores = similarity_scores[significant_channel_mask]
-        
-        print(f"Energy Ratios no overlap: {similarity_scores}")
-        print(f"Significant Channels Mask: {significant_channel_mask}")
 
         # Assert only on active channels to avoid noise-floor randomness
         if active_scores.size > 0:
@@ -163,7 +141,7 @@ class TestClass:
         test_output_trimmed = test_output[:, :min_samples]
 
         similarity_scores = cosine_similarity(calc_output_trimmed, test_output_trimmed)
-        print(f"Energy Ratios : {similarity_scores}")
+        print(f"Similarity Scores: {similarity_scores}")
         
         energies = np.mean(np.abs(calc_output_trimmed)**2, axis=1)
         relative_energies = energies / (np.max(energies) + 1e-12)
@@ -171,9 +149,6 @@ class TestClass:
         significant_channel_mask = relative_energies > 0.01 
         active_scores = similarity_scores[significant_channel_mask]
         
-        print(f"Energy Ratios no overlap: {similarity_scores}")
-        print(f"Significant Channels Mask: {significant_channel_mask}")
-
         # Assert only on active channels to avoid noise-floor randomness
         if active_scores.size > 0:
             assert np.all(active_scores > 1 - test_config.tol), \
@@ -209,23 +184,15 @@ class TestClass:
         test_output_trimmed = test_output[:, :min_samples]
 
         similarity_scores = cosine_similarity(calc_output_trimmed, test_output_trimmed)
-        print(f"Energy Ratios overlap: {similarity_scores}")
+        print(f"Similarity Scores overlap: {similarity_scores}")
         
-        test_output_flipped = test_output_trimmed[::-1, :]
-
-        similarity_scores_flipped = cosine_similarity(calc_output_trimmed, test_output_flipped)
-        print(f"Flipped Similarity: {similarity_scores_flipped}")
-
         energies = np.mean(np.abs(calc_output_trimmed)**2, axis=1)
         relative_energies = energies / (np.max(energies) + 1e-12)
         
         significant_channel_mask = relative_energies > 0.01 
         active_scores = similarity_scores[significant_channel_mask]
-        
-        print(f"Energy Ratios: {similarity_scores}")
-        print(f"Significant Channels Mask: {significant_channel_mask}")
 
-        # Assert only on active channels to avoid noise-floor randomness
+       # Assert only on active channels to avoid noise-floor randomness
         if active_scores.size > 0:
             assert np.all(active_scores > 1 - test_config.tol), \
                 f"Similarity fail on active channels! Values: {active_scores}"

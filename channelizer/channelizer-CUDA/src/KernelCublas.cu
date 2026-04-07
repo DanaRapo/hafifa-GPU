@@ -19,4 +19,3 @@ __global__ void PrepareDataCublas(cuComplex* inputStream, cuComplex* dataMat,
         }
     }
 }
-
