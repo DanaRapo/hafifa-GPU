@@ -1,9 +1,10 @@
-#include "../Include/PolyphaseDirect.cuh"
-#include "../Include/PolyphaseCublas.cuh"
+#include "../Include/ChannelizerDirect.cuh"
+#include "../Include/ChannelizerCublas.cuh"
 #include <iostream>
+#include <memory>
 
 int main() {
-    PolyphaseConfig no_overlap;
+   PolyphaseConfig no_overlap;
     no_overlap.inputPath  = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/input_signal.bin";
     no_overlap.filterPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin";
     no_overlap.outputPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/direct_no_overlap_res_wola.bin";
@@ -19,40 +20,45 @@ int main() {
     overlap.bwHz = 1000.0f;
     overlap.overlap = 2.0f;
 
-    PolyphaseConfig cublas_no_overlap;
-    cublas_no_overlap.inputPath  = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/input_signal.bin";
-    cublas_no_overlap.filterPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer.bin";
+    PolyphaseConfig cublas_no_overlap = no_overlap;
     cublas_no_overlap.outputPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/cublas_no_overlap_res_wola.bin";
-    cublas_no_overlap.fsHz = 10000.0f;
-    cublas_no_overlap.bwHz = 1000.0f;
-    cublas_no_overlap.overlap = 1.0f;
 
-    PolyphaseConfig cublas_overlap;
-    cublas_overlap.inputPath  = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/input_signal_overlap_dense.bin";
-    cublas_overlap.filterPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/filter_from_designer_overlap.bin";
+    PolyphaseConfig cublas_overlap = overlap;
     cublas_overlap.outputPath = "/home/test3/Desktop/git/hafifa-GPU/channelizer/channelizer-python/signals/cublas_overlap_res_wola.bin";
-    cublas_overlap.fsHz = 10000.0f;
-    cublas_overlap.bwHz = 1000.0f;
-    cublas_overlap.overlap = 2.0f;
-
     try {
-        std::cout << "--- Running Scenario: No Overlap ---" << std::endl;
-        runCompletePolyphasePipeline(no_overlap);
-
-        std::cout << "\n--- Running Scenario: Overlap ---" << std::endl;
-        runCompletePolyphasePipeline(overlap);
-
-        std::cout << "\n--- Running Scenario: cuBLAS No Overlap ---" << std::endl;
-        runCompleteCublasPipeline(cublas_no_overlap);
+        // --- Direct Scenarios ---
         
-        std::cout << "\n--- Running Scenario: cuBLAS Overlap ---" << std::endl;
-        runCompleteCublasPipeline(cublas_overlap);
+        {
+            std::cout << "--- Running Scenario: Direct No Overlap ---" << std::endl;
+            auto direct_no = ChannelizerDirect::createAndLoad(no_overlap);
+            if (direct_no) direct_no->runCompleteDirectPipeline(no_overlap);
+        } // 'direct_no' is destroyed here, GPU memory freed
+
+        {
+            std::cout << "\n--- Running Scenario: Direct Overlap ---" << std::endl;
+            auto direct_ov = ChannelizerDirect::createAndLoad(overlap);
+            if (direct_ov) direct_ov->runCompleteDirectPipeline(overlap);
+        } // 'direct_ov' is destroyed here, GPU memory freed
+
+        // --- cuBLAS Scenarios ---
+
+        {
+            std::cout << "\n--- Running Scenario: cuBLAS No Overlap ---" << std::endl;
+            auto cublas_no = ChannelizerCublas::createAndLoad(cublas_no_overlap);
+            if (cublas_no) cublas_no->runCompleteCublasPipeline(cublas_no_overlap);
+        } // 'cublas_no' is destroyed here, GPU memory freed
+
+        {
+            std::cout << "\n--- Running Scenario: cuBLAS Overlap ---" << std::endl;
+            auto cublas_ov = ChannelizerCublas::createAndLoad(cublas_overlap);
+            if (cublas_ov) cublas_ov->runCompleteCublasPipeline(cublas_overlap);
+        } // 'cublas_ov' is destroyed here, GPU memory freed
+
     } 
     catch (const std::exception& e) {
-        std::cerr << "Execution failed: " << e.what() << std::endl;
+        std::cerr << "Critical Error during execution: " << e.what() << std::endl;
         return 1;
     }
-
 
     return 0;
 }

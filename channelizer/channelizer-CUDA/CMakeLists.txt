@@ -9,10 +9,8 @@ include_directories(Include)
 
 set(SOURCES
     src/main.cu
-    src/PolyphaseCublas.cu
-    src/KernelCublas.cu
-    src/PolyphaseDirect.cu
-    src/KernelPolyphaseDirect.cu
+    src/ChannelizerDirect.cu
+    src/ChannelizerCublas.cu
     src/utils.cu
 )
 
